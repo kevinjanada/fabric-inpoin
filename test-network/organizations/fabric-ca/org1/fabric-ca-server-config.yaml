@@ -404,3 +404,9 @@ intermediate:
     client:
       certfile:
       keyfile:
+
+cfg:
+  affiliations:
+    allowremove: true
+  identities:
+    allowremove: true 
