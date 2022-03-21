@@ -58,7 +58,7 @@ func TestCreateToken(t *testing.T) {
 
 	expectedCreator := minterClientId
 
-	err := chaincode.CreateToken(transactionContext, 1, "token1Name")
+	_, err := chaincode.CreateToken(transactionContext, "token1Name")
 	require.NoError(t, err)
 
 	chaincodeStub.GetStateReturns([]byte(expectedCreator), nil)
@@ -71,4 +71,20 @@ func TestCreateToken(t *testing.T) {
 	tokenName, err := chaincode.GetTokenName(transactionContext, 1)
 	require.NoError(t, err)
 	require.Equal(t, tokenName, expectedTokenName)
+}
+
+func TestMint(t *testing.T) {
+	transactionContext, chaincodeStub := prepMocksAsMinterMSP()
+	chaincode := chaincode.SmartContract{}
+
+	transactionContext.GetStubReturns(chaincodeStub)
+
+	_, err := chaincode.CreateToken(transactionContext, "token1Name")
+	require.NoError(t, err)
+
+	minter := minterClientId
+	// Mock return state creator is minter
+	chaincodeStub.GetStateReturns([]byte(minter), nil)
+	err = chaincode.Mint(transactionContext, minter, 1, 1000000)
+	require.NoError(t, err)
 }

@@ -24,3 +24,5 @@ external-chaincode/
 # Eclipse
 .classpath
 .settings
+
+test-network/organizations

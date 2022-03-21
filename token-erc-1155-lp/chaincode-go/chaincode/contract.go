@@ -26,6 +26,8 @@ const tokenNamePrefix = "tokenId~name"
 
 const minterMSPID = "Org1MSP"
 
+var tokenIdCount uint64 = 0
+
 // SmartContract provides functions for transferring tokens between accounts
 type SmartContract struct {
 	contractapi.Contract
@@ -112,37 +114,51 @@ type ToID struct {
 	ID uint64
 }
 
-func (s *SmartContract) CreateToken(ctx contractapi.TransactionContextInterface, id uint64, tokenName string) error {
+type CreateTokenResponse struct {
+	TokenId   uint64 `json:"token_id"`
+	TokenName string `json:"token_name"`
+	Creator   string `json:"creator"`
+}
+
+func (s *SmartContract) CreateToken(ctx contractapi.TransactionContextInterface, tokenName string) (*CreateTokenResponse, error) {
 	creatorId, err := ctx.GetClientIdentity().GetID()
 	if err != nil {
-		return fmt.Errorf("failed to get client id: %v", err)
+		return nil, fmt.Errorf("failed to get client id: %v", err)
 	}
-	tokenIdString := strconv.FormatUint(uint64(id), 10)
+	tokenId := tokenIdCount + 1
+	tokenIdString := strconv.FormatUint(uint64(tokenId), 10)
 	// Save token creator by token id
 	// Save as mapping of prefix-tokenId => creatorId
 	creatorKey, err := ctx.GetStub().CreateCompositeKey(creatorPrefix, []string{tokenIdString})
 	if err != nil {
-		return fmt.Errorf("failed to create the composite key for prefix %s: %v", creatorPrefix, err)
+		return nil, fmt.Errorf("failed to create the composite key for prefix %s: %v", creatorPrefix, err)
 	}
 
 	err = ctx.GetStub().PutState(creatorKey, []byte(creatorId))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Save token name by token id
 	// Save as mapping of prefix-tokenId => tokenName
 	tokenNameKey, err := ctx.GetStub().CreateCompositeKey(tokenNamePrefix, []string{tokenIdString})
 	if err != nil {
-		return fmt.Errorf("failed to create the composite key for prefix %s: %v", creatorPrefix, err)
+		return nil, fmt.Errorf("failed to create the composite key for prefix %s: %v", creatorPrefix, err)
 	}
 
 	err = ctx.GetStub().PutState(tokenNameKey, []byte(tokenName))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	// Increment tokenIdCount
+	tokenIdCount++
+
+	return &CreateTokenResponse{
+		TokenId:   tokenId,
+		TokenName: tokenName,
+		Creator:   creatorId,
+	}, nil
 }
 
 func (s *SmartContract) GetTokenCreator(ctx contractapi.TransactionContextInterface, id uint64) (string, error) {
@@ -180,7 +196,11 @@ func (s *SmartContract) GetTokenName(ctx contractapi.TransactionContextInterface
 func (s *SmartContract) Mint(ctx contractapi.TransactionContextInterface, account string, id uint64, amount uint64) error {
 
 	// Check minter authorization - this sample assumes Org1 is the central banker with privilege to mint new tokens
-	err := authorizationHelper(ctx)
+	// err := authorizationHelper(ctx)
+	// if err != nil {
+	// 	return err
+	// }
+	err := s.AuthorizedToMint(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -658,6 +678,24 @@ func (s *SmartContract) BroadcastTokenExistance(ctx contractapi.TransactionConte
 	// Emit TransferSingle event
 	transferSingleEvent := TransferSingle{operator, "0x0", "0x0", id, 0}
 	return emitTransferSingle(ctx, transferSingleEvent)
+}
+
+func (s *SmartContract) AuthorizedToMint(ctx contractapi.TransactionContextInterface, id uint64) error {
+	clientID, err := ctx.GetClientIdentity().GetID()
+	if err != nil {
+		return fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	creator, err := s.GetTokenCreator(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to get token creator fork token id: %v", err)
+	}
+
+	if clientID != creator {
+		return fmt.Errorf("%v is not allowed to mint token id %v. creator is %v", clientID, id, creator)
+	}
+
+	return nil
 }
 
 // Helper Functions
