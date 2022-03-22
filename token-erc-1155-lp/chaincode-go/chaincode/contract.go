@@ -143,7 +143,7 @@ func (s *SmartContract) CreateToken(ctx contractapi.TransactionContextInterface,
 	// Save as mapping of prefix-tokenId => tokenName
 	tokenNameKey, err := ctx.GetStub().CreateCompositeKey(tokenNamePrefix, []string{tokenIdString})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create the composite key for prefix %s: %v", creatorPrefix, err)
+		return nil, fmt.Errorf("failed to create the composite key for prefix %s: %v", tokenNamePrefix, err)
 	}
 
 	err = ctx.GetStub().PutState(tokenNameKey, []byte(tokenName))
