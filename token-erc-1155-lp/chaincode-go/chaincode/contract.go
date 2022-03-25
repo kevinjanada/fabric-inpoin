@@ -733,7 +733,14 @@ func addBalance(ctx contractapi.TransactionContextInterface, sender string, reci
 
 	balanceKey, err := ctx.GetStub().CreateCompositeKey(balancePrefix, []string{recipient, idString, sender})
 	if err != nil {
-		return fmt.Errorf("failed to create the composite key for prefix %s: %v", balancePrefix, err)
+		fmt.Println("error here")
+		fmt.Println("recipient", recipient)
+		fmt.Println("idString", idString)
+		fmt.Println("sender", sender)
+		return fmt.Errorf(
+			"failed to create the composite key for prefix %s: %v", 
+			balancePrefix, 
+			err)
 	}
 
 	balanceBytes, err := ctx.GetStub().GetState(balanceKey)

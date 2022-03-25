@@ -14,7 +14,7 @@ const PLATFORM_FEE_KEY = "lp~platformFee"
 
 const PLATFORM_TOKEN_ID_KEY = "lp~platformTokenId"
 
-const lpTokenBalancePrefix = "lp~balance"
+const lpTokenBalancePrefix = "lpbalance"
 
 type LiquidityPool struct {
 	TokenID             uint64  `json:"token_id"`
@@ -95,11 +95,10 @@ func (s *SmartContract) CreateLP(ctx contractapi.TransactionContextInterface, to
 
 func (s *SmartContract) AddToLP(ctx contractapi.TransactionContextInterface, adderId string, tokenId uint64, amount float64) error {
 	tokenIdString := strconv.FormatUint(uint64(tokenId), 10)
-	lpTokenBalanceKey, err := ctx.GetStub().CreateCompositeKey(lpTokenBalancePrefix, []string{tokenIdString})
-	if err != nil {
-		return err
-	}
-	err = addBalance(ctx, adderId, lpTokenBalanceKey, tokenId, amount)
+
+	lpTokenBalanceKey := lpTokenBalancePrefix + tokenIdString
+
+	err := addBalance(ctx, adderId, lpTokenBalanceKey, tokenId, amount)
 	if err != nil {
 		return err
 	}
@@ -112,8 +111,8 @@ func (s *SmartContract) AddToLP(ctx contractapi.TransactionContextInterface, add
 
 func (s *SmartContract) TakeFromLP(ctx contractapi.TransactionContextInterface, takerId string, tokenId uint64, amount float64) error {
 	tokenIdString := strconv.FormatUint(uint64(tokenId), 10)
-	lpTokenBalanceKey, err := ctx.GetStub().CreateCompositeKey(lpTokenBalancePrefix, []string{tokenIdString})
-	err = addBalance(ctx, lpTokenBalanceKey, takerId, tokenId, amount)
+	lpTokenBalanceKey := lpTokenBalancePrefix + tokenIdString
+	err := addBalance(ctx, lpTokenBalanceKey, takerId, tokenId, amount)
 	if err != nil {
 		return err
 	}
