@@ -8,6 +8,11 @@ import (
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
+func pprint(data interface{}) {
+	bytes, _ := json.MarshalIndent(data, "", " ")
+	fmt.Println(string(bytes))
+}
+
 const lpKeyPrefix = "lp"
 
 const PLATFORM_FEE_KEY = "lp~platformFee"
@@ -200,7 +205,7 @@ func (s *SmartContract) Exchange(
 	toTokenId uint64,
 	amount float64,
 ) (result *ExchangeResult, err error) {
-
+	fmt.Println("here")
 	// Get ID of submitting client identity
 	exchangerId, err := ctx.GetClientIdentity().GetID()
 	if err != nil {
@@ -211,6 +216,7 @@ func (s *SmartContract) Exchange(
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("platformTokenId", platformTokenId)
 
 	PLATFORM_FEE, err := s.GetPlatformFeeAmount(ctx)
 	if err != nil {
@@ -227,7 +233,11 @@ func (s *SmartContract) Exchange(
 	}
 
 	if fromTokenId == platformTokenId || toTokenId == platformTokenId {
+		fmt.Println("fromTokenId", fromTokenId)
+		fmt.Println("toTokenId", toTokenId)
+		fmt.Println("platformTokenId", platformTokenId)
 		if toTokenId == platformTokenId {
+			fmt.Println("Token X -> BUMNPoin")
 			// -------------------
 			// Token X -> BUMNPoin
 			// -------------------
@@ -285,6 +295,7 @@ func (s *SmartContract) Exchange(
 		}
 
 		if fromTokenId == platformTokenId {
+			fmt.Println("BUMNPoin -> Token X")
 			lp, err := s.GetLPByTokenID(ctx, toTokenId)
 			if err != nil {
 				return nil, err
@@ -342,6 +353,7 @@ func (s *SmartContract) Exchange(
 	}
 
 	if fromTokenId != platformTokenId && toTokenId != platformTokenId {
+		fmt.Printf("routing fromTokenId: %v to toTokenId %v \n", fromTokenId, toTokenId)
 		// -----
 		// First Exchange
 		// ---------
@@ -352,6 +364,8 @@ func (s *SmartContract) Exchange(
 			return nil, err
 		}
 		exchangeRate := lp.ExchangeRate
+		fmt.Println("First LP")
+		pprint(lp)
 
 		// No Fees for first exchange
 		grossExchangeAmount := amount * exchangeRate
@@ -377,24 +391,27 @@ func (s *SmartContract) Exchange(
 		// send fromToken amount from user to LP
 		err = s.AddToLP(ctx, exchangerId, fromTokenId, amount)
 		if err != nil {
-			return nil, err
+			fmt.Printf("s.AddToLP - routing LP error : %v\n with params: exchangerId = %v\n fromTokenId = %v\n amount = %v", err, exchangerId, fromTokenId, amount)
+			return nil, fmt.Errorf("s.AddToLP - routing LP error : %v\n with params: exchangerId = %v\n fromTokenId = %v\n amount = %v", err, exchangerId, fromTokenId, amount)
 		}
 
 		// send toToken amount from LP to user
 		err = s.TakeFromLP(ctx, exchangerId, toTokenId, toTokenAmount)
 		if err != nil {
-			return nil, err
+			fmt.Printf("s.TakeFromLP - routing LP error : %v\n with params: exchangerId = %v\n fromTokenId = %v\n amount = %v", err, exchangerId, fromTokenId, amount)
+			return nil, fmt.Errorf("s.TakeFromLP - routing LP error : %v\n with params: exchangerId = %v\n fromTokenId = %v\n amount = %v", err, exchangerId, fromTokenId, amount)
 		}
 
 		// send toToken as fees to platformProvider
-		platformTokenCreatorId, err := s.GetTokenCreator(ctx, platformTokenId)
-		if err != nil {
-			return nil, err
-		}
-		err = s.TakeFromLP(ctx, platformTokenCreatorId, toTokenId, platformFeeAmount)
-		if err != nil {
-			return nil, err
-		}
+		// platformTokenCreatorId, err := s.GetTokenCreator(ctx, platformTokenId)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// fmt.Println("platformTokenCreatorId", platformTokenCreatorId)
+		// err = s.TakeFromLP(ctx, platformTokenCreatorId, toTokenId, platformFeeAmount)
+		// if err != nil {
+		// 	return nil, err
+		// }
 
 		lp.TokenSupply += amount
 		lp.TokenPlatformSupply -= grossExchangeAmount
@@ -445,7 +462,7 @@ func (s *SmartContract) Exchange(
 			return nil, err
 		}
 		// send platformFeeAmount to provider
-		platformTokenCreatorId, err = s.GetTokenCreator(ctx, platformTokenId)
+		platformTokenCreatorId, err := s.GetTokenCreator(ctx, platformTokenId)
 		if err != nil {
 			return nil, err
 		}
